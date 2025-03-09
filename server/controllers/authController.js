@@ -1,5 +1,7 @@
 import User from "../models/User.js";
 import bycrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import "dotenv/config";
 
 //Regitser user
 export const RegisterUser=async(req,res)=>{
@@ -41,7 +43,7 @@ export const LoginUser=async(req,res)=>{
         const user=await User.findOne({email});
         if(!user)
         {
-            return res.status(400).json({message:"Invalid credentials"});
+            return res.status(400).json({message:"user not found"});
         }
 
 
@@ -52,11 +54,17 @@ export const LoginUser=async(req,res)=>{
             return res.status(400).json({message:"Invalid credentials"});
         }
 
-        res.status(200).json({message:"Login successfully",userID:user._id});
-    }catch(error){
-        res.status(500).json({message:"server error"});
+        //generate token
+        const token=jwt.sign({userID:user._id},process.env.JWT_SECRET,{expiresIn:"24h",});
+        console.log("generated token",token);
+
+        //send token in repsonse
+        return res.json({ token, user }); // ✅ RETURN
+    } catch (error) {
+      console.error("Error in login:", error);
+      return res.status(500).json({ message: "Server error" }); // ✅ RETURN
     }
-    };
+  };
 
 
 
