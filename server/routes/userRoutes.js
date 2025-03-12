@@ -2,7 +2,7 @@ import express from 'express'
 import authMiddleware from '../middlewares/authMiddleware.js'
 const router=express.Router();
 
-router.get("/dashboard",authMiddleware,(req,res)=>{
+router.get("/dashboard",authMiddleware,async(req,res)=>{
     res.json({message:"welcome to your dashboard",
         userID:req.user.userID,
         name: req.user.name,

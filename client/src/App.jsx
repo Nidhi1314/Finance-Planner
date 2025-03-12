@@ -4,11 +4,13 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import PrivateRoute from './components/PrivateRoute';
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 // import { AuthProvider } from "./context/AuthContext";
 
 function App() {
   return (
-   
+   <><ToastContainer />
     <Routes>
       <Route path='/' element={<Home/>}></Route>
       <Route path='/login' element={<Login/>}></Route>
@@ -17,6 +19,7 @@ function App() {
          <Route path='/dashboard' element={<Dashboard/>}></Route>
       </Route>
     </Routes>
+    </>
     
   );
 }

@@ -55,7 +55,7 @@ export const LoginUser=async(req,res)=>{
         }
 
         //generate token
-        const token=jwt.sign({userID:user._id},process.env.JWT_SECRET,{expiresIn:"24h",});
+        const token=jwt.sign({userID:user._id, name:user.name, email:user.email},process.env.JWT_SECRET,{expiresIn:"24h",});
         console.log("generated token",token);
 
         //send token in repsonse
