@@ -124,8 +124,10 @@ const Dashboard = () => {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <div className="w-64 bg-blue-700 text-white flex flex-col p-5 shadow-lg">
-        <h2 className="text-2xl font-semibold mb-6">FinTrack</h2>
+      <div className="w-64 bg-gray-900 bg-opacity-80 backdrop-blur-lg shadow-md text-white flex flex-col p-5 shadow-lg">
+      <h2 className="text-2xl mb-25 font-bold text-white tracking-wide">
+            Fin<span className="text-blue-400">Track</span>
+          </h2>
         <nav className="flex flex-col space-y-4">
         <button onClick={() => setSelectedSection("home")} className="p-3 hover:bg-blue-500 rounded">Home</button>
           <button onClick={() => setSelectedSection("upload")} className="p-3 hover:bg-blue-500 rounded">Upload File</button>
