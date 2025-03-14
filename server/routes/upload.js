@@ -27,7 +27,7 @@ router.post("/upload",upload.single("file"),async(req,res)=>{
     const fileUrl=req.file.path;
 
     try{
-        // const pythonresponse=await axios.post("http://localhost:6001/predict",{
+        // const pythonresponse=await axios.post("http://localhost:5000/api/ml/predict",{
         //     fileUrl:fileUrl,
         // });
 
