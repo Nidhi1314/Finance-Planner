@@ -24,10 +24,10 @@ function Nav() {
           <a href="#features" className="text-gray-300 hover:text-white transition duration-300">
             Features
           </a>
-          <a href="#" className="text-gray-300 hover:text-white transition duration-300">
+          <a href="#reviews" className="text-gray-300 hover:text-white transition duration-300">
             Reviews
           </a>
-          <a href="#" className="text-gray-300 hover:text-white transition duration-300">
+          <a href="#contact" className="text-gray-300 hover:text-white transition duration-300">
             Contact Us
           </a>
         </div>

@@ -25,11 +25,12 @@ function Features() {
         <div className="flex flex-col rounded-2xl bg-sky-100 p-8 md:flex-row md:gap-8 xl:w-2/3">
           <div className="flex flex-col justify-center gap-4 text-center md:ml-10 md:w-1/2 md:text-left">
             <h2 className="text-3xl font-semibold text-gray-800">
-              Smart Expense Tracking
+            Easy-to-Use & Intuitive Design
+
             </h2>
             <p className="text-gray-600">
-              FinTrack helps you monitor your daily expenses, categorize spending,  
-              and set monthly budgets to stay financially secure.
+              FinTrack provides a clean and simple interface designed for effortless tracking.  
+              Navigate through your finances with ease and take control instantly.
             </p>
           </div>
 
@@ -44,11 +45,12 @@ function Features() {
             <img src={ShieldCheck} alt="Shield Icon" className="w-12" />
           </div>
           <h2 className="text-3xl font-semibold text-gray-800">
-            Bank-Level Security
+          Secure Bank Statement Upload
           </h2>
           <p className="text-gray-600">
-            Your data and transactions are protected with industry-standard  
-            security encryption. No worries, no hidden risks!
+          Upload your bank statements with end-to-end encryption. Your data  
+      remains private while our system extracts key financial insights.
+
           </p>
         </div>
 
@@ -63,11 +65,11 @@ function Features() {
             <img src={Coins} alt="Coins Icon" className="w-12" />
           </div>
           <h2 className="text-3xl font-semibold text-gray-800">
-            Smart Budgeting
+          Expense Analysis
           </h2>
           <p className="text-gray-600">
-            Reduce unnecessary spending and set better financial goals  
-            with AI-powered budget recommendations.
+          Get a clear breakdown of where your money goes each month.  
+          Visualize spending categories, trends, and savings in real-time.
           </p>
         </div>
 
@@ -75,11 +77,11 @@ function Features() {
         <div className="flex flex-col rounded-2xl bg-sky-100 p-8 md:flex-row md:gap-8 xl:w-2/3">
           <div className="flex flex-col justify-center gap-4 text-center md:ml-10 md:w-1/2 md:text-left">
             <h2 className="text-3xl font-semibold text-gray-800">
-              Easy Money Transfers
+            Next Month’s Expense Prediction
             </h2>
             <p className="text-gray-600">
-              Send and receive money effortlessly with real-time transaction  
-              tracking and instant notifications.
+            Using AI models like ARIMA & LSTM, FinTrack predicts your  
+            next month’s expenses so you can plan ahead and save more.
             </p>
           </div>
 

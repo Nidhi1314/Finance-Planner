@@ -23,16 +23,22 @@ function Reviews() {
   ];
 
   return (
-    <section id="reviews" className="flex flex-col items-center justify-center bg-gray-100 py-16 px-6 md:px-12 lg:px-24">
+    <section
+      id="reviews"
+      className="flex flex-col items-center justify-center bg-gray-100 py-16 px-6 md:px-12 lg:px-24"
+    >
       <div className="text-center max-w-3xl">
         <h2 className="text-4xl font-bold text-gray-800">What Our Users Say</h2>
         <p className="mt-4 text-gray-600 text-lg">
-          FinTrack is empowering users to take charge of their finances with smart budgeting and expense predictions.
+          FinTrack is empowering users to take charge of their finances with
+          smart budgeting and expense predictions.
         </p>
       </div>
-      <div className="mt-10 w-full max-w-4xl">
-        <Carousel slides={slides} />
-      </div>
+      
+        <div className="mx-auto mt-10 ">
+          <Carousel slides={slides} />
+        </div>
+      
     </section>
   );
 }

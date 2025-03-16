@@ -115,7 +115,7 @@ const Dashboard = () => {
   if (loading) return <h2>Loading...</h2>;
   const handleLogout = () => {
     localStorage.removeItem("token"); // Remove token from localStorage
-    navigate("/login"); // Redirect to login page
+    navigate("/"); // Redirect to login page
   };
 
 
