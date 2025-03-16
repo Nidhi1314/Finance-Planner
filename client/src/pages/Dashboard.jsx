@@ -124,15 +124,15 @@ const Dashboard = () => {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <div className="w-64 bg-gray-900 bg-opacity-80 backdrop-blur-lg shadow-md text-white flex flex-col p-5 shadow-lg">
+      <div className="w-64 bg-gray-900 bg-opacity-80 backdrop-blur-lg  text-white flex flex-col p-5 shadow-lg">
       <h2 className="text-2xl mb-25 font-bold text-white tracking-wide">
             Fin<span className="text-blue-400">Track</span>
           </h2>
         <nav className="flex flex-col space-y-4">
-        <button onClick={() => setSelectedSection("home")} className="p-3 hover:bg-blue-500 rounded">Home</button>
-          <button onClick={() => setSelectedSection("upload")} className="p-3 hover:bg-blue-500 rounded">Upload File</button>
-          <button onClick={() => setSelectedSection("analyze")} className="p-3 hover:bg-blue-500 rounded">Analyze</button>
-          <button onClick={() => setSelectedSection("predict")} className="p-3 hover:bg-blue-500 rounded">Predict Expense</button>
+        <button onClick={() => setSelectedSection("home")} className={`cursor-pointer p-3 rounded ${selectedSection === "home" ? "bg-blue-200 text-black" : "hover:bg-blue-500"}`}>Home</button>
+          <button onClick={() => setSelectedSection("upload")} className={`cursor-pointer p-3 rounded ${selectedSection === "upload" ? "bg-blue-200 text-black" : "hover:bg-blue-500"}`}>Upload File</button>
+          <button onClick={() => setSelectedSection("analyze")} className={`cursor-pointer p-3 rounded ${selectedSection === "analyze" ? "bg-blue-200 text-black" : "hover:bg-blue-500"}`}>Analyze</button>
+          <button onClick={() => setSelectedSection("predict")} className={`cursor-pointer p-3 rounded ${selectedSection === "predict" ? "bg-blue-200 text-black" : "hover:bg-blue-500"}`}>Predict Expense</button>
         </nav>
         <div className="mt-auto">
           <button onClick={handleLogout} className=" cursor-pointer flex items-center p-3 hover:bg-red-500 rounded">
@@ -173,7 +173,7 @@ const Dashboard = () => {
             className="text-blue-600 hover:underline" 
             onClick={() => setSelectedSection("upload")}
           >
-            Click here to upload your bank statement.
+            Upload your bank statement.
           </button>
         </li>
         <li>
@@ -182,7 +182,7 @@ const Dashboard = () => {
             className="text-blue-600 hover:underline" 
             onClick={() => setSelectedSection("analyze")}
           >
-            View your expense breakdown and trends.
+            View your expense breakdown.
           </button>
         </li>
         <li>
@@ -191,7 +191,7 @@ const Dashboard = () => {
             className="text-blue-600 hover:underline" 
             onClick={() => setSelectedSection("predict")}
           >
-            Get AI-based forecasts for future expenses.
+          Get machine learning-based forecasts for future expenses.
           </button>
         </li>
       </ul>
