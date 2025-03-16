@@ -1,6 +1,11 @@
 import React from "react";
+import {useNavigate} from "react-router-dom";
 
 function Nav() {
+  const navigate=useNavigate();
+  const handleLogin=()=>{
+    navigate("/login");
+  }
   return (
     <nav className="w-full bg-gray-900 bg-opacity-80 backdrop-blur-lg shadow-md">
       <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center px-6 py-5">
@@ -28,7 +33,7 @@ function Nav() {
         </div>
 
         {/* Login Button */}
-        <button className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-xl transition duration-300 shadow-md">
+        <button  onClick={handleLogin}  className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-xl transition duration-300 shadow-md">
           Login/Signup
         </button>
       </div>

@@ -1,8 +1,15 @@
 import phone from '../assets/phone.jpg';
 import userimage from '../assets/userimage.jpeg';
+import {useNavigate} from "react-router-dom";
 
 function Hero() {
+  const navigate=useNavigate();
+  const handleregister=()=>{
+    navigate("/signup");
+  }
+
   return (
+    
     <section className="mt-8 max-w-7xl mx-auto flex flex-col items-center gap-12 px-6 lg:px-12">
       
       {/* Welcome Section */}
@@ -23,7 +30,7 @@ function Hero() {
           <p className="text-lg text-gray-600">
             Take control of your finances with our Finance Planner! Track your monthly expenses, budget for special occasions, and get accurate future expense predictions powered by advanced machine learning models. Plan smarter, live better!
           </p>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-lg transition duration-300 w-fit">
+          <button onClick={handleregister} className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-lg transition duration-300 w-fit">
             Get Started
           </button>
         </div>

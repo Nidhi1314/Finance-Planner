@@ -135,7 +135,7 @@ const Dashboard = () => {
           <button onClick={() => setSelectedSection("predict")} className="p-3 hover:bg-blue-500 rounded">Predict Expense</button>
         </nav>
         <div className="mt-auto">
-          <button onClick={handleLogout} className="flex items-center p-3 hover:bg-red-500 rounded">
+          <button onClick={handleLogout} className=" cursor-pointer flex items-center p-3 hover:bg-red-500 rounded">
             <FaSignOutAlt className="mr-2" /> Logout
           </button>
         </div>
@@ -149,7 +149,7 @@ const Dashboard = () => {
   <User className="w-6 h-6 text-gray-600" />
   {user?.name}
 </h1>
-          <button onClick={handleLogout} className="text-red-500 hover:text-red-700">
+          <button onClick={handleLogout} className="cursor-pointer text-red-500 hover:text-red-700">
             <FaSignOutAlt size={24} />
           </button>
         </div>
