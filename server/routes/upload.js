@@ -27,14 +27,11 @@ router.post("/upload",upload.single("file"),async(req,res)=>{
     const fileUrl=req.file.path;
 
     try{
-        // const pythonresponse=await axios.post("http://localhost:5000/api/ml/predict",{
-        //     fileUrl:fileUrl,
-        // });
+         const pythonresponse=await axios.post("http://localhost:5000/api/ml/predict",{
+             fileUrl:fileUrl,
+         });
 
-        const dummyPrediction = {
-            prediction: "Expense category: Food & Dining",  // Example output
-            confidence: 0.92,  // Simulated confidence score
-        };
+       
 
         // Send the dummy response to the frontend
         res.json({

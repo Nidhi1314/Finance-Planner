@@ -8,7 +8,15 @@ from prophet import Prophet
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import xgboost as xgb
 import plotly.graph_objects as go
-
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import requests
+from io import BytesIO
+import os
+import uuid
+import base64
+app = Flask(__name__)
+CORS(app)  # Allow cross-origin requests
 # Suppress warnings
 import warnings
 warnings.filterwarnings('ignore')
@@ -16,14 +24,14 @@ warnings.filterwarnings('ignore')
 forecast_period=365
 
 # Function to process the bank statement Excel file
-def process_bank_statement(file_path, skip_rows=21):
+def process_bank_statement(df):
     """
     Processes the bank statement Excel file by skipping the first skip_rows rows.
     Extracts the date and withdrawal amount columns based on position.
     """
     try:
         # Read the Excel file, skipping the first skip_rows rows
-        df = pd.read_excel(file_path, skiprows=skip_rows)
+        
         
         # Debugging: Print the first few rows and columns
         print("Uploaded file preview:")
@@ -417,30 +425,28 @@ class TimeSeriesForecaster:
         }
 
 # Main function to run the forecasting
-def main():
-    # Provide the file path to your Excel file
-    file_path = "ba_st.xlsx"  # Replace with your file path
-    
+
+def run_forecasting(df):
     # Process the bank statement
-    processed_df = process_bank_statement(file_path)
-    
+    processed_df = process_bank_statement(df)
+
     if processed_df is None:
-        print("Error processing file. Please check the format.")
-        return
-    
+        return {"error": "Error processing file. Please check the format."}
+
     # Initialize the forecaster
     forecaster = TimeSeriesForecaster(processed_df)
-    
+
     # Train all models and generate forecasts
     results = forecaster.train_all_models(forecast_periods=forecast_period)
-    
+
     # Visualize the best model's forecast
     best_model_name = results['best_model']
     best_forecast = results[best_model_name.lower()]['forecast']
-    
+
+    fig = go.Figure()
+
     if best_model_name == 'Prophet':
         df = best_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-        fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=df['ds'],
             y=df['yhat'],
@@ -464,7 +470,6 @@ def main():
             template='plotly_dark'
         )
     else:
-        # Handle different forecast structures for SARIMA and XGBoost
         if best_model_name == 'SARIMA':
             df = pd.DataFrame({
                 'date': best_forecast['mean'].index,
@@ -472,7 +477,6 @@ def main():
                 'lower': best_forecast['lower'],
                 'upper': best_forecast['upper']
             })
-            fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=df['date'],
                 y=df['mean'],
@@ -494,7 +498,6 @@ def main():
                 'date': best_forecast['dates'],
                 'mean': best_forecast['values']
             })
-            fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=df['date'],
                 y=df['mean'],
@@ -502,18 +505,59 @@ def main():
                 name='Forecast',
                 line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
             ))
-            # XGBoost doesn't provide confidence intervals in this implementation
             print("Note: XGBoost forecast does not include confidence intervals.")
-        
+
         fig.update_layout(
             title=f'Spending Forecast ({best_model_name})',
             xaxis_title='Date',
             yaxis_title='Amount ($)',
             template='plotly_dark'
         )
-    
-    fig.show()
 
-# Run the main function
-if __name__ == '__main__':
-    main()
+    # Save plot to static folder
+    filename = f"forecast_{uuid.uuid4().hex}.png"
+    filepath = os.path.join("static", filename)
+    fig.write_image(filepath)
+
+    # Encode to base64
+    with open(filepath, "rb") as img_file:
+        b64_string = base64.b64encode(img_file.read()).decode("utf-8")
+
+    return {
+        "best_model": best_model_name,
+        "image_base64": b64_string,
+        "image_url": f"/static/{filename}"
+    }
+
+
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Flask API is running"}), 200
+
+
+@app.route("/api/ml/predict", methods=["POST"])
+def predict_expense():
+    try:
+        data = request.get_json()
+        file_url = data["fileUrl"]
+
+        response = requests.get(file_url)
+        file_bytes = BytesIO(response.content)
+
+        df = pd.read_excel(file_bytes, skiprows=21)
+
+        result = run_forecasting(df)
+
+        return jsonify({
+            "message": "Forecast successful",
+            "best_model": result["best_model"],
+            "image_base64": result["image_base64"],  # Use in frontend as <img src="data:image/png;base64,...">
+            "image_url": result["image_url"]  # Optional, if you prefer to load from /static/ directory
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)  # Running on port 5000 or any available port
