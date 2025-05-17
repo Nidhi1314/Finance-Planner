@@ -25,22 +25,21 @@ router.post("/upload",upload.single("file"),async(req,res)=>{
         return res.status(400).json({message:"no file uplaod"});
     }
     const fileUrl=req.file.path;
+    console.log("uplaoded file url",fileUrl);
+    console.log("File Object: ", req.file);
+
 
     try{
-        // const pythonresponse=await axios.post("http://localhost:5000/api/ml/predict",{
-        //     fileUrl:fileUrl,
-        // });
-
+        // const response = await axios.post("http://localhost:6001/api/ml/predict", { fileUrl });
         const dummyPrediction = {
-            prediction: "Expense category: Food & Dining",  // Example output
-            confidence: 0.92,  // Simulated confidence score
+            category: "Expense category: Food & Dining",
+            confidence: 0.92
         };
 
-        // Send the dummy response to the frontend
         res.json({
             message: "File uploaded successfully",
             fileUrl: fileUrl,
-            prediction: dummyPrediction,
+            // prediction: response.data,  // Simulated prediction
         });
     }
     catch(error){

@@ -1,64 +1,84 @@
+import sys
+import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import TimeSeriesSplit
-import statsmodels.api as sm
 from prophet import Prophet
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import xgboost as xgb
 import plotly.graph_objects as go
+from fastapi import FastAPI, HTTPException
+import os
+import uvicorn
+import warnings
 
 # Suppress warnings
-import warnings
 warnings.filterwarnings('ignore')
+
+# Define temporary directory for file storage
+TEMP_DIR = "temp_files"
+os.makedirs(TEMP_DIR, exist_ok=True)
+
+app = FastAPI()
+
 # Input from user to specify forecasting period
-forecast_period=365
+forecast_period = 365
+
+# Function to download and process the Excel file
+def download_and_process_file(file_url):
+    try:
+        # Download the file from the provided URL
+        response = requests.get(file_url)
+        response.raise_for_status()  # Raise an exception for bad status codes
+
+        # Save the file temporarily
+        file_path = os.path.join(TEMP_DIR, "downloaded_file.xlsx")
+        with open(file_path, "wb") as f:
+            f.write(response.content)
+
+        # Process the file (assuming bank statement format)
+        processed_df = process_bank_statement(file_path)
+        if processed_df is None:
+            raise ValueError("Failed to process the bank statement file")
+
+        return processed_df, file_path
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 # Function to process the bank statement Excel file
 def process_bank_statement(file_path, skip_rows=21):
-    """
-    Processes the bank statement Excel file by skipping the first skip_rows rows.
-    Extracts the date and withdrawal amount columns based on position.
-    """
     try:
-        # Read the Excel file, skipping the first skip_rows rows
         df = pd.read_excel(file_path, skiprows=skip_rows)
         
-        # Debugging: Print the first few rows and columns
+        # Debugging: Print file preview
         print("Uploaded file preview:")
         print(df.head())
         print("Columns in the file:", df.columns.tolist())
         
-        # Use column positions since names are obscured
-        date_col = df.columns[0]  # First column (index 0) is the date
-        withdrawal_col = df.columns[4]  # Fifth column (index 4) is the withdrawal amount
+        # Use column positions since names may vary
+        date_col = df.columns[0]  # First column is date
+        withdrawal_col = df.columns[4]  # Fifth column is withdrawal amount
         
-        # Select and rename columns
         processed_df = df[[date_col, withdrawal_col]].copy()
         processed_df.columns = ['date', 'amount']
         
-        # Filter out rows with invalid dates (e.g., '********')
-        processed_df = processed_df[processed_df['date'] != '********']
-        
-        # Convert date to datetime format
+        # Filter invalid dates
+        processed_df = processed_df[processed_df['date'] != '****']
         processed_df['date'] = pd.to_datetime(processed_df['date'], format='%d/%m/%y', errors='coerce')
-        
-        # Drop rows with invalid dates (NaT)
         processed_df = processed_df.dropna(subset=['date'])
         
-        # Convert withdrawal amount to numeric, handling any non-numeric values
+        # Convert amount to numeric and filter debit transactions
         processed_df['amount'] = pd.to_numeric(processed_df['amount'], errors='coerce')
-        
-        # Filter for debit transactions only (non-zero withdrawal amounts)
         processed_df = processed_df[processed_df['amount'] > 0].copy()
-        
-        # Ensure amount is positive for analysis
         processed_df['amount'] = processed_df['amount'].abs()
         
-        # Aggregate by date (in case there are multiple transactions per day)
+        # Aggregate by date
         daily_spend = processed_df.groupby('date')['amount'].sum().reset_index()
-        
         return daily_spend
     
     except Exception as e:
@@ -67,19 +87,16 @@ def process_bank_statement(file_path, skip_rows=21):
 
 # Function to engineer features for time series forecasting
 def engineer_features(df):
-    """
-    Creates time-based features for forecasting models.
-    """
     df = df.copy()
     if 'date' in df.columns:
         df = df.set_index('date')
     
-    # Resample to ensure regular time intervals (daily)
+    # Resample to daily intervals
     df = df.resample('D').sum().fillna(0)
+    df = df.reset_index()
     
     # Add date-based features
-    df = df.reset_index()
-    df['dayofweek'] = df['date'].dt.dayofweek  # 0=Monday, 6=Sunday
+    df['dayofweek'] = df['date'].dt.dayofweek
     df['month'] = df['date'].dt.month
     df['year'] = df['date'].dt.year
     df['day'] = df['date'].dt.day
@@ -97,7 +114,7 @@ def engineer_features(df):
     df['rolling_mean_14'] = df['amount'].rolling(window=14).mean()
     df['rolling_mean_30'] = df['amount'].rolling(window=30).mean()
     
-    # Add rolling standard deviation (for volatility)
+    # Add rolling standard deviation
     df['rolling_std_7'] = df['amount'].rolling(window=7).std()
     df['rolling_std_30'] = df['amount'].rolling(window=30).std()
     
@@ -105,7 +122,7 @@ def engineer_features(df):
     df['week_of_year'] = df['date'].dt.isocalendar().week
     df['day_of_month'] = df['date'].dt.day
     
-    # Create cyclical features for day of week, month, etc.
+    # Cyclical features
     df['dayofweek_sin'] = np.sin(2 * np.pi * df['dayofweek']/7)
     df['dayofweek_cos'] = np.cos(2 * np.pi * df['dayofweek']/7)
     df['month_sin'] = np.sin(2 * np.pi * df['month']/12)
@@ -113,9 +130,9 @@ def engineer_features(df):
     
     return df
 
-# TimeSeriesForecaster class to train and evaluate models
+# TimeSeriesForecaster class
 class TimeSeriesForecaster:
-    def __init__(self, data):
+    def _init_(self, data):
         self.original_data = data.copy()
         self.engineered_data = None
         self.best_model = None
@@ -141,12 +158,7 @@ class TimeSeriesForecaster:
         rmse = np.sqrt(mean_squared_error(y_true, y_pred))
         mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-5))) * 100
         
-        performance = {
-            'MAE': mae,
-            'RMSE': rmse,
-            'MAPE': mape
-        }
-        
+        performance = {'MAE': mae, 'RMSE': rmse, 'MAPE': mape}
         self.model_performances[model_name] = performance
         
         if mae < self.best_score:
@@ -156,81 +168,57 @@ class TimeSeriesForecaster:
         return performance
     
     def train_prophet(self, forecast_periods=forecast_period):
-        
-        global spending_data_year  # Define outside the function
         prophet_data = self.original_data.rename(columns={'date': 'ds', 'amount': 'y'}).copy()
-
-    # Apply log transformation to handle heteroscedasticity (only if necessary)
-        prophet_data['y'] = np.log1p(prophet_data['y'])  # log(1 + x) to handle negative values
-
-    # Determine the inflation rate based on the years present in spending data
-        start_year = prophet_data['ds'].dt.year.min()
-        end_year = prophet_data['ds'].dt.year.max()
-
-    # Create a mapping for inflation rates taken from 'https://www.macrotrends.net/global-metrics/countries/IND/india/inflation-rate-cpi'
+        prophet_data['y'] = np.log1p(prophet_data['y'])  # Log transform
+        
+        # Inflation rates
         inflation_rates = {
-        2015: 0.0491, 2016: 0.0495, 2017: 0.033,
-        2018: 0.0394, 2019: 0.0373, 2020: 0.0662,
-        2021: 0.0513, 2022: 0.0670, 2023: 0.0565,
-        2024: 0.0494, 2025: 0.0396, 2026: 0.0457
+            2015: 0.0491, 2016: 0.0495, 2017: 0.033, 2018: 0.0394, 2019: 0.0373,
+            2020: 0.0662, 2021: 0.0513, 2022: 0.0670, 2023: 0.0565, 2024: 0.0494,
+            2025: 0.0396, 2026: 0.0457
         }
-
-    # Assign inflation rate based on the respective year
         prophet_data['inflation_rate'] = prophet_data['ds'].dt.year.map(inflation_rates).fillna(0)
-
+        
         model = Prophet(
-        holidays_prior_scale=5,
-        changepoint_prior_scale=0.075,
-        seasonality_prior_scale=17,
-        yearly_seasonality=True,
-        weekly_seasonality=True,
-        daily_seasonality=False,
-        seasonality_mode='multiplicative'
+            holidays_prior_scale=5,
+            changepoint_prior_scale=0.075,
+            seasonality_prior_scale=17,
+            yearly_seasonality=True,
+            weekly_seasonality=True,
+            daily_seasonality=False,
+            seasonality_mode='multiplicative'
         )
-
-    # Add Indian holidays
         model.add_country_holidays(country_name='IN')
-
         if len(prophet_data) > 60:
-            
             model.add_seasonality(name='monthly', period=30.5, fourier_order=7)
-
-    # Add inflation rate as an external regressor
         model.add_regressor('inflation_rate')
-
         model.fit(prophet_data)
-
-        future = model.make_future_dataframe(periods=forecast_period)
+        
+        future = model.make_future_dataframe(periods=forecast_periods)
         future['inflation_rate'] = future['ds'].dt.year.map(inflation_rates).fillna(0)
-
         forecast = model.predict(future)
-
-    # Split the original data for test set alignment
-        split_idx = int(len(self.original_data) * (1 - 0.2))  # Match test_size from train_test_split
-        train_data = self.original_data.iloc[:split_idx]
+        
+        # Reverse log transformation
+        forecast['yhat'] = np.expm1(forecast['yhat'])
+        forecast['yhat_lower'] = np.expm1(forecast['yhat_lower'])
+        forecast['yhat_upper'] = np.expm1(forecast['yhat_upper'])
+        
+        # Evaluate on test set
+        split_idx = int(len(self.original_data) * (1 - 0.2))
         test_data = self.original_data.iloc[split_idx:]
         test_prophet = test_data.rename(columns={'date': 'ds', 'amount': 'y'})
-
-    # Filter forecast to match test dates
-        test_preds = np.expm1(forecast[forecast['ds'].isin(test_prophet['ds'])]['yhat'].values)  # Reverse log transformation
+        test_preds = forecast[forecast['ds'].isin(test_prophet['ds'])]['yhat'].values
         test_actuals = test_prophet['y'].values
- 
-    # Ensure lengths match before evaluation
-        if len(test_preds) != len(test_actuals):
-          raise ValueError(f"Length mismatch: test_preds={len(test_preds)}, test_actuals={len(test_actuals)}")
-
-        performance = self.evaluate_model(test_actuals, test_preds, 'Prophet')
-
-        return {
-        'model': model,
-        'forecast': forecast,
-        'performance': performance
-          }
- 
+        
+        if len(test_preds) == len(test_actuals):
+            performance = self.evaluate_model(test_actuals, test_preds, 'Prophet')
+        else:
+            performance = {'MAE': None, 'RMSE': None, 'MAPE': None}
+        
+        return {'model': model, 'forecast': forecast, 'performance': performance}
     
     def train_sarima(self, forecast_periods=forecast_period):
         data = self.original_data.set_index('date')['amount']
-        
         train, test = self.train_test_split()
         train_sarima = train.set_index('date')['amount']
         test_sarima = test.set_index('date')['amount']
@@ -263,7 +251,6 @@ class TimeSeriesForecaster:
                                         )
                                         result = model.fit(disp=False)
                                         aic = result.aic
-                                        
                                         if aic < best_aic:
                                             best_aic = aic
                                             best_params = (p, d, q, P, D, Q, s)
@@ -280,14 +267,10 @@ class TimeSeriesForecaster:
         )
         result = model.fit(disp=False)
         
-        test_preds = result.predict(
-            start=test.index[0],
-            end=test.index[-1]
-        )
-        
+        test_preds = result.predict(start=test.index[0], end=test.index[-1])
         performance = self.evaluate_model(test_sarima.values, test_preds, 'SARIMA')
         
-        forecast = result.get_forecast(steps=forecast_period)
+        forecast = result.get_forecast(steps=forecast_periods)
         forecast_values = forecast.predicted_mean
         forecast_ci = forecast.conf_int()
         
@@ -304,10 +287,8 @@ class TimeSeriesForecaster:
     
     def train_xgboost(self, forecast_periods=forecast_period):
         self.prepare_data()
-        
         features = self.engineered_data.drop(['date', 'amount'], axis=1)
         target = self.engineered_data['amount']
-        
         features = features.fillna(0)
         
         train, test = self.train_test_split()
@@ -327,14 +308,11 @@ class TimeSeriesForecaster:
         model.fit(X_train, y_train)
         
         test_preds = model.predict(X_test)
-        
         performance = self.evaluate_model(y_test, test_preds, 'XGBoost')
         
         last_date = self.engineered_data['date'].iloc[-1]
         future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=forecast_periods)
-        
-        future_df = pd.DataFrame({'date': future_dates})
-        future_df['amount'] = 0
+        future_df = pd.DataFrame({'date': future_dates, 'amount': 0})
         
         future_df['dayofweek'] = future_df['date'].dt.dayofweek
         future_df['month'] = future_df['date'].dt.month
@@ -343,58 +321,42 @@ class TimeSeriesForecaster:
         future_df['is_weekend'] = future_df['dayofweek'].isin([5, 6]).astype(int)
         future_df['is_month_start'] = future_df['date'].dt.is_month_start.astype(int)
         future_df['is_month_end'] = future_df['date'].dt.is_month_end.astype(int)
-        
         future_df['dayofweek_sin'] = np.sin(2 * np.pi * future_df['dayofweek']/7)
         future_df['dayofweek_cos'] = np.cos(2 * np.pi * future_df['dayofweek']/7)
         future_df['month_sin'] = np.sin(2 * np.pi * future_df['month']/12)
         future_df['month_cos'] = np.cos(2 * np.pi * future_df['month']/12)
-        
         future_df['week_of_year'] = future_df['date'].dt.isocalendar().week
         future_df['day_of_month'] = future_df['date'].dt.day
         
         full_data = self.engineered_data.copy()
-        
         forecast_values = []
         
-        for i in range(forecast_period):
+        for i in range(forecast_periods):
             current_df = pd.concat([full_data, future_df.iloc[:i]], axis=0)
             next_day = future_df.iloc[i:i+1].copy()
             
             for lag, days in [('amount_lag7', 7), ('amount_lag14', 14), ('amount_lag30', 30)]:
                 lag_idx = len(current_df) - days
-                if lag_idx >= 0:
-                    next_day[lag] = current_df['amount'].iloc[lag_idx]
-                else:
-                    next_day[lag] = 0
+                next_day[lag] = current_df['amount'].iloc[lag_idx] if lag_idx >= 0 else 0
             
             for window in [7, 14, 30]:
                 roll_col = f'rolling_mean_{window}'
                 roll_std_col = f'rolling_std_{window}'
-                
                 last_idx = len(current_df)
                 start_idx = max(0, last_idx - window)
-                
-                if start_idx < last_idx:
-                    recent_values = current_df['amount'].iloc[start_idx:last_idx]
-                    next_day[roll_col] = recent_values.mean()
-                    next_day[roll_std_col] = recent_values.std() if len(recent_values) > 1 else 0
-                else:
-                    next_day[roll_col] = 0
-                    next_day[roll_std_col] = 0
+                recent_values = current_df['amount'].iloc[start_idx:last_idx]
+                next_day[roll_col] = recent_values.mean() if start_idx < last_idx else 0
+                next_day[roll_std_col] = recent_values.std() if len(recent_values) > 1 else 0
             
             pred_cols = X_train.columns
             next_day_features = next_day[pred_cols]
             prediction = model.predict(next_day_features)[0]
-            
             forecast_values.append(prediction)
             future_df.loc[future_df.index[i], 'amount'] = prediction
         
         return {
             'model': model,
-            'forecast': {
-                'dates': future_dates,
-                'values': forecast_values
-            },
+            'forecast': {'dates': future_dates, 'values': forecast_values},
             'performance': performance
         }
     
@@ -406,7 +368,6 @@ class TimeSeriesForecaster:
         print("Model Performances:")
         for model_name, metrics in self.model_performances.items():
             print(f"{model_name} - MAE: {metrics['MAE']:.2f}, RMSE: {metrics['RMSE']:.2f}, MAPE: {metrics['MAPE']:.2f}%")
-        
         print(f"\nBest model: {self.best_model_name} with MAE: {self.best_score:.2f}")
         
         return {
@@ -416,104 +377,61 @@ class TimeSeriesForecaster:
             'best_model': self.best_model_name
         }
 
-# Main function to run the forecasting
-def main():
-    # Provide the file path to your Excel file
-    file_path = "ba_st.xlsx"  # Replace with your file path
-    
-    # Process the bank statement
-    processed_df = process_bank_statement(file_path)
-    
+# Main function to process and forecast
+def main(file_url):
+    # Download and process the file
+    processed_df, file_path = download_and_process_file(file_url)
     if processed_df is None:
-        print("Error processing file. Please check the format.")
-        return
+        raise ValueError("Processed data is None")
     
-    # Initialize the forecaster
+    # Initialize and train forecaster
     forecaster = TimeSeriesForecaster(processed_df)
-    
-    # Train all models and generate forecasts
     results = forecaster.train_all_models(forecast_periods=forecast_period)
     
-    # Visualize the best model's forecast
+    # Prepare forecast result based on the best model
     best_model_name = results['best_model']
     best_forecast = results[best_model_name.lower()]['forecast']
     
     if best_model_name == 'Prophet':
-        df = best_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=df['ds'],
-            y=df['yhat'],
-            mode='lines',
-            name='Forecast',
-            line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-        ))
-        fig.add_trace(go.Scatter(
-            x=df['ds'].tolist() + df['ds'].tolist()[::-1],
-            y=df['yhat_upper'].tolist() + df['yhat_lower'].tolist()[::-1],
-            fill='toself',
-            fillcolor='rgba(220, 53, 69, 0.2)',
-            line=dict(color='rgba(255, 255, 255, 0)'),
-            name='95% Confidence Interval',
-            hoverinfo='skip'
-        ))
-        fig.update_layout(
-            title='Spending Forecast (Prophet)',
-            xaxis_title='Date',
-            yaxis_title='Amount ($)',
-            template='plotly_dark'
-        )
-    else:
-        # Handle different forecast structures for SARIMA and XGBoost
-        if best_model_name == 'SARIMA':
-            df = pd.DataFrame({
-                'date': best_forecast['mean'].index,
-                'mean': best_forecast['mean'],
-                'lower': best_forecast['lower'],
-                'upper': best_forecast['upper']
-            })
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=df['date'],
-                y=df['mean'],
-                mode='lines',
-                name='Forecast',
-                line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-            ))
-            fig.add_trace(go.Scatter(
-                x=df['date'].tolist() + df['date'].tolist()[::-1],
-                y=df['upper'].tolist() + df['lower'].tolist()[::-1],
-                fill='toself',
-                fillcolor='rgba(220, 53, 69, 0.2)',
-                line=dict(color='rgba(255, 255, 255, 0)'),
-                name='95% Confidence Interval',
-                hoverinfo='skip'
-            ))
-        elif best_model_name == 'XGBoost':
-            df = pd.DataFrame({
-                'date': best_forecast['dates'],
-                'mean': best_forecast['values']
-            })
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=df['date'],
-                y=df['mean'],
-                mode='lines',
-                name='Forecast',
-                line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-            ))
-            # XGBoost doesn't provide confidence intervals in this implementation
-            print("Note: XGBoost forecast does not include confidence intervals.")
-        
-        fig.update_layout(
-            title=f'Spending Forecast ({best_model_name})',
-            xaxis_title='Date',
-            yaxis_title='Amount ($)',
-            template='plotly_dark'
-        )
+        forecast_df = best_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
+        forecast_df = forecast_df.rename(columns={'ds': 'date', 'yhat': 'forecast', 'yhat_lower': 'lower', 'yhat_upper': 'upper'})
+    elif best_model_name == 'SARIMA':
+        forecast_df = pd.DataFrame({
+            'date': best_forecast['mean'].index,
+            'forecast': best_forecast['mean'],
+            'lower': best_forecast['lower'],
+            'upper': best_forecast['upper']
+        })
+    elif best_model_name == 'XGBoost':
+        forecast_df = pd.DataFrame({
+            'date': best_forecast['dates'],
+            'forecast': best_forecast['values'],
+            'lower': [None] * len(best_forecast['values']),
+            'upper': [None] * len(best_forecast['values'])
+        })
     
-    fig.show()
+    forecast_json = forecast_df.to_dict(orient='records')
+    
+    # Clean up temporary file
+    os.remove(file_path)
+    
+    return {
+        'best_model': best_model_name,
+        'forecast': forecast_json,
+        'performance': results[best_model_name.lower()]['performance']
+    }
+@app.get("/")
+def read_root():
+    return {"message": "FastAPI is working!"}
+# FastAPI endpoint
+@app.post("/api/ml/predict")
+async def predict(data: dict):
+    file_url = data.get("fileUrl")
+    if not file_url:
+        raise HTTPException(status_code=400, detail="File URL is required")
+    
+    result = main(file_url)
+    return {"message": "File processed successfully", "result": result}
 
-# Run the main function
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=6001)
