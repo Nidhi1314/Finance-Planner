@@ -3,10 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { FaSignOutAlt } from "react-icons/fa";
 import {toast} from 'react-toastify';
 import { User } from "lucide-react";
+import Analyse from "./Insights.jsx";
+import Loading from "../components/LoadingOverlay.jsx";
 const Dashboard = () => {
   const [user, setUser] = useState({});
   const [loading, setLoading] = useState(true);
+  const [isuploading, setisuploading] = useState(false);
+  const [isanalysing, setisanalysing] = useState(false);
   const [selectedSection, setSelectedSection] = useState("home");
+
+
   const navigate = useNavigate();
   useEffect(() => {
     console.log("User Data:", user);
@@ -38,6 +44,8 @@ const Dashboard = () => {
 
     const formData = new FormData();
     formData.append("file", selectedFile);
+    setisuploading(true);
+    setisanalysing(false);
 
     try {
       const response = await fetch("http://localhost:5000/api/upload", {
@@ -46,7 +54,9 @@ const Dashboard = () => {
       });
 
       const data = await response.json();
+      
       if (response.ok) {
+        setisuploading(false);
         console.log("Uploaded file URL:", data.fileUrl);
         alert("File uploaded successfully!");
         toast.success("File uploaded successfully!", {
@@ -59,6 +69,17 @@ const Dashboard = () => {
           theme: "colored",
         });
         setSelectedFile(null); 
+        setTimeout(() => {
+        setisanalysing(true);  // Start analyzing spinner
+      }, 1000);
+         setTimeout(() => {
+      setisanalysing(false);
+      setSelectedSection("analyze");
+      
+    }, 3000);
+
+
+
       } else {
         toast.error("Upload failed. Please try again.");
         alert("Upload failed: " + data.message);
@@ -68,6 +89,8 @@ const Dashboard = () => {
       toast.error("Upload failed. Please try again.");
       alert("An error occurred while uploading.");
     }
+
+   
   };
 
 
@@ -122,7 +145,7 @@ const Dashboard = () => {
   
   
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 relative">
       {/* Sidebar */}
       <div className="w-64 bg-gray-900 bg-opacity-80 backdrop-blur-lg  text-white flex flex-col p-5 shadow-lg">
       <h2 className="text-2xl mb-25 font-bold text-white tracking-wide">
@@ -227,10 +250,8 @@ const Dashboard = () => {
 
 
 
-         {/* Content Area */}
-         <div className="p-6 overflow-y-auto h-full">
-          
-
+  {/* Content Area */}
+  <div className="p-6 overflow-y-auto h-full">
   {selectedSection === "upload" && (
   <div className="p-6 bg-white shadow-lg rounded-lg w-full max-w-lg mx-auto border border-gray-300">
   <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">
@@ -280,22 +301,18 @@ const Dashboard = () => {
   <button
     className="mt-4 w-full bg-green-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
     onClick={() => handleUpload(selectedFile)}
-    disabled={!selectedFile}
-  >
+    disabled={!selectedFile}>
     Upload
   </button>
 </div>
-)}
+)} {/*upload section end*/}
 
+{isuploading && <Loading message="Uploading your file..." />}
+{isanalysing && <Loading message="Analyzing your data..." />}
 
-          {selectedSection === "analyze" && (
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Analyze Expenses</h2>
-              <p>View insights and trends from your financial statements.</p>
-            </div>
-          )}
+{selectedSection === "analyze" && <Analyse/>}
 
-          {selectedSection === "predict" && (
+{selectedSection === "predict" && (
             <div>
               <h2 className="text-2xl font-bold mb-4">Predict Expenses</h2>
               <p>Use machine learning to forecast future expenses.</p>
