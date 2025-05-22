@@ -439,108 +439,64 @@ def run_forecasting(df):
     # Train all models and generate forecasts
     results = forecaster.train_all_models(forecast_periods=forecast_period)
 
-    # Visualize the best model's forecast
+    # Get the best model and its forecast
     best_model_name = results['best_model']
     best_forecast = results[best_model_name.lower()]['forecast']
 
-    fig = go.Figure()
+    forecast_data = []
 
     if best_model_name == 'Prophet':
         df = best_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-        fig.add_trace(go.Scatter(
-            x=df['ds'],
-            y=df['yhat'],
-            mode='lines',
-            name='Forecast',
-            line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-        ))
-        fig.add_trace(go.Scatter(
-            x=df['ds'].tolist() + df['ds'].tolist()[::-1],
-            y=df['yhat_upper'].tolist() + df['yhat_lower'].tolist()[::-1],
-            fill='toself',
-            fillcolor='rgba(220, 53, 69, 0.2)',
-            line=dict(color='rgba(255, 255, 255, 0)'),
-            name='95% Confidence Interval',
-            hoverinfo='skip'
-        ))
-        fig.update_layout(
-            title='Spending Forecast (Prophet)',
-            xaxis_title='Date',
-            yaxis_title='Amount ($)',
-            template='plotly_dark'
-        )
-    else:
-        if best_model_name == 'SARIMA':
-            df = pd.DataFrame({
-                'date': best_forecast['mean'].index,
-                'mean': best_forecast['mean'],
-                'lower': best_forecast['lower'],
-                'upper': best_forecast['upper']
-            })
-            fig.add_trace(go.Scatter(
-                x=df['date'],
-                y=df['mean'],
-                mode='lines',
-                name='Forecast',
-                line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-            ))
-            fig.add_trace(go.Scatter(
-                x=df['date'].tolist() + df['date'].tolist()[::-1],
-                y=df['upper'].tolist() + df['lower'].tolist()[::-1],
-                fill='toself',
-                fillcolor='rgba(220, 53, 69, 0.2)',
-                line=dict(color='rgba(255, 255, 255, 0)'),
-                name='95% Confidence Interval',
-                hoverinfo='skip'
-            ))
-        elif best_model_name == 'XGBoost':
-            df = pd.DataFrame({
-                'date': best_forecast['dates'],
-                'mean': best_forecast['values']
-            })
-            fig.add_trace(go.Scatter(
-                x=df['date'],
-                y=df['mean'],
-                mode='lines',
-                name='Forecast',
-                line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-            ))
-            print("Note: XGBoost forecast does not include confidence intervals.")
+        forecast_data = [
+            {
+                "date": str(row['ds'].date()),
+                "yhat": row['yhat'],
+                "yhat_lower": row['yhat_lower'],
+                "yhat_upper": row['yhat_upper']
+            }
+            for _, row in df.iterrows()
+        ]
 
-        fig.update_layout(
-            title=f'Spending Forecast ({best_model_name})',
-            xaxis_title='Date',
-            yaxis_title='Amount ($)',
-            template='plotly_dark'
-        )
+    elif best_model_name == 'SARIMA':
+        df = pd.DataFrame({
+            'date': best_forecast['mean'].index,
+            'mean': best_forecast['mean'],
+            'lower': best_forecast['lower'],
+            'upper': best_forecast['upper']
+        })
+        forecast_data = [
+            {
+                "date": str(date.date()),
+                "yhat": mean,
+                "yhat_lower": lower,
+                "yhat_upper": upper
+            }
+            for date, mean, lower, upper in zip(df['date'], df['mean'], df['lower'], df['upper'])
+        ]
 
-    # Save plot to static folder
-    filename = f"forecast_{uuid.uuid4().hex}.png"
-    filepath = os.path.join("static", filename)
-    fig.write_image(filepath)
-
-    # Encode to base64
-    with open(filepath, "rb") as img_file:
-        b64_string = base64.b64encode(img_file.read()).decode("utf-8")
+    elif best_model_name == 'XGBoost':
+        df = pd.DataFrame({
+            'date': best_forecast['dates'],
+            'mean': best_forecast['values']
+        })
+        forecast_data = [
+            {
+                "date": str(date.date()) if hasattr(date, "date") else str(date),
+                "yhat": value
+            }
+            for date, value in zip(df['date'], df['mean'])
+        ]
 
     return {
         "best_model": best_model_name,
-        "image_base64": b64_string,
-        "image_url": f"/static/{filename}"
+        "forecast": forecast_data
     }
 
-
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"message": "Flask API is running"}), 200
 
 
 @app.route("/api/ml/predict", methods=["POST"])
 def predict_expense():
     try:
-        data = request.get_json()
-        file_url = data["fileUrl"]
-
         response = requests.get(file_url)
         file_bytes = BytesIO(response.content)
 
@@ -548,14 +504,18 @@ def predict_expense():
 
         result = run_forecasting(df)
 
+        if "error" in result:
+            return jsonify({"error": result["error"]}), 400
+
         return jsonify({
             "message": "Forecast successful",
             "best_model": result["best_model"],
-            "image_base64": result["image_base64"],  # Use in frontend as <img src="data:image/png;base64,...">
-            "image_url": result["image_url"]  # Optional, if you prefer to load from /static/ directory
-        })
+            "forecast": result["forecast"]
+        }), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 
