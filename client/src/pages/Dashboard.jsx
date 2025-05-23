@@ -4,13 +4,17 @@ import { FaSignOutAlt } from "react-icons/fa";
 import {toast} from 'react-toastify';
 import { User } from "lucide-react";
 import Analyse from "./Insights.jsx";
+import  sendToML  from "../../../server/routes/mlRoutes.js";
 import Loading from "../components/LoadingOverlay.jsx";
+
+
 const Dashboard = () => {
   const [user, setUser] = useState({});
   const [loading, setLoading] = useState(true);
   const [isuploading, setisuploading] = useState(false);
   const [isanalysing, setisanalysing] = useState(false);
   const [selectedSection, setSelectedSection] = useState("home");
+  const [predictionData, setPredictionData] = useState(null);
 
 
   const navigate = useNavigate();
@@ -69,18 +73,24 @@ const Dashboard = () => {
           draggable: true,
           theme: "colored",
         });
+
         setSelectedFile(null); 
         setTimeout(() => {
         setisanalysing(true);  // Start analyzing spinner
-      }, 1000);
-         setTimeout(() => {
-      setisanalysing(false);
-      setSelectedSection("analyze");
-      
-    }, 3000);
+      }, 3000);
 
+      try{
+        const mlResponse= await sendToML(data.fileUrl);
+        console.log("ML prediction response",mlResponse);
 
-
+        setPredictionData(mlResponse.forecast);
+        setisanalysing(false);
+        setSelectedSection("analyze");
+      }catch(mlerror){
+        console.error("error in ML prediction",mlerror);
+        setisanalysing(false);
+      }
+         
       } else {
         setisuploading(false);
         toast.error("Upload failed. Please try again.");
@@ -313,7 +323,7 @@ const Dashboard = () => {
 {isuploading && <Loading message="Uploading your file..." />}
 {isanalysing && <Loading message="Analyzing your data..." />}
 
-{selectedSection === "analyze" && <Analyse/>}
+{selectedSection === "analyze" && (<Analyse predictionData={predictionData} />)}
 
 {selectedSection === "predict" && (
             <div>
