@@ -26,26 +26,21 @@ router.post("/upload",upload.single("file"),async(req,res)=>{
     }
     const fileUrl=req.file.path;
     console.log("uplaoded file url",fileUrl);
-    console.log("File Object: ", req.file);
-
-
-    try{
-        // const response = await axios.post("http://localhost:6001/api/ml/predict", { fileUrl });
-        const dummyPrediction = {
-            category: "Expense category: Food & Dining",
-            confidence: 0.92
-        };
-
-        res.json({
-            message: "File uploaded successfully",
-            fileUrl: fileUrl,
-            // prediction: response.data,  // Simulated prediction
-        });
+    
+   try {
+    if (!req.file) {
+      console.log("No file received");
+      return res.status(400).json({ message: "No file uploaded" });
     }
-    catch(error){
-        console.error("error calling ml model",error);
-        res.status(500).json({message:"error processing file in ml model"});
-    }
+
+    const fileUrl = req.file.path;
+    console.log("Uploaded file URL:", fileUrl);
+    return res.status(200).json({ fileUrl });
+
+  } catch (error) {
+    console.error("Server upload error:", error);
+    return res.status(500).json({ message: "Upload failed on server." });
+  }
 });
 
 export default router;

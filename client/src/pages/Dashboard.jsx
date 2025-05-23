@@ -51,6 +51,7 @@ const Dashboard = () => {
       const response = await fetch("http://localhost:5000/api/upload", {
         method: "POST",
         body: formData,
+        mode: "cors",
       });
 
       const data = await response.json();
@@ -81,10 +82,12 @@ const Dashboard = () => {
 
 
       } else {
+        setisuploading(false);
         toast.error("Upload failed. Please try again.");
         alert("Upload failed: " + data.message);
       }
     } catch (error) {
+      setisuploading(false);
       console.error("Upload error:", error);
       toast.error("Upload failed. Please try again.");
       alert("An error occurred while uploading.");

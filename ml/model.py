@@ -1,31 +1,27 @@
-import sys
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.model_selection import TimeSeriesSplit
 from prophet import Prophet
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import xgboost as xgb
 import plotly.graph_objects as go
-<<<<<<< HEAD:ml/model.py
-from fastapi import FastAPI, HTTPException
-import os
-import uvicorn
-import warnings
-
-=======
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import requests
-from io import BytesIO
 import os
 import uuid
 import base64
-app = Flask(__name__)
-CORS(app)  # Allow cross-origin requests
->>>>>>> f36ba0f42e48d9f233eec619065f1ea5d0e22bb0:ml_server/model.py
+from io import BytesIO
+import warnings
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
@@ -33,7 +29,7 @@ warnings.filterwarnings('ignore')
 TEMP_DIR = "temp_files"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-app = FastAPI()
+
 
 # Input from user to specify forecasting period
 forecast_period = 365
@@ -50,6 +46,12 @@ def download_and_process_file(file_url):
         with open(file_path, "wb") as f:
             f.write(response.content)
 
+                # Try reading with both possible engines
+        try:
+            df = pd.read_excel(file_path, engine='openpyxl')  # Try openpyxl first
+        except:
+            df = pd.read_excel(file_path, engine='xlrd')  # Fallback to xlrd
+
         # Process the file (assuming bank statement format)
         processed_df = process_bank_statement(file_path)
         if processed_df is None:
@@ -63,11 +65,8 @@ def download_and_process_file(file_url):
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 # Function to process the bank statement Excel file
-<<<<<<< HEAD:ml/model.py
-def process_bank_statement(file_path, skip_rows=21):
-    try:
-        df = pd.read_excel(file_path, skiprows=skip_rows)
-=======
+
+
 def process_bank_statement(df):
     """
     Processes the bank statement Excel file by skipping the first skip_rows rows.
@@ -76,7 +75,7 @@ def process_bank_statement(df):
     try:
         # Read the Excel file, skipping the first skip_rows rows
         
->>>>>>> f36ba0f42e48d9f233eec619065f1ea5d0e22bb0:ml_server/model.py
+
         
         # Debugging: Print file preview
         print("Uploaded file preview:")
@@ -155,7 +154,7 @@ def engineer_features(df):
 
 # TimeSeriesForecaster class
 class TimeSeriesForecaster:
-    def _init_(self, data):
+    def __init__(self, data):
         self.original_data = data.copy()
         self.engineered_data = None
         self.best_model = None
@@ -400,20 +399,6 @@ class TimeSeriesForecaster:
             'best_model': self.best_model_name
         }
 
-<<<<<<< HEAD:ml/model.py
-# Main function to process and forecast
-def main(file_url):
-    # Download and process the file
-    processed_df, file_path = download_and_process_file(file_url)
-    if processed_df is None:
-        raise ValueError("Processed data is None")
-    
-    # Initialize and train forecaster
-    forecaster = TimeSeriesForecaster(processed_df)
-    results = forecaster.train_all_models(forecast_periods=forecast_period)
-    
-    # Prepare forecast result based on the best model
-=======
 # Main function to run the forecasting
 
 def run_forecasting(df):
@@ -430,170 +415,94 @@ def run_forecasting(df):
     results = forecaster.train_all_models(forecast_periods=forecast_period)
 
     # Visualize the best model's forecast
->>>>>>> f36ba0f42e48d9f233eec619065f1ea5d0e22bb0:ml_server/model.py
     best_model_name = results['best_model']
     best_forecast = results[best_model_name.lower()]['forecast']
 
-    fig = go.Figure()
+    forecast_data = []
 
     if best_model_name == 'Prophet':
-<<<<<<< HEAD:ml/model.py
-        forecast_df = best_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-        forecast_df = forecast_df.rename(columns={'ds': 'date', 'yhat': 'forecast', 'yhat_lower': 'lower', 'yhat_upper': 'upper'})
+        df = best_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
+        forecast_data = [
+            {
+                "date": str(row['ds'].date()),
+                "yhat": row['yhat'],
+                "yhat_lower": row['yhat_lower'],
+                "yhat_upper": row['yhat_upper']
+            }
+            for _, row in df.iterrows()
+        ]
+
     elif best_model_name == 'SARIMA':
-        forecast_df = pd.DataFrame({
+        df = pd.DataFrame({
             'date': best_forecast['mean'].index,
-            'forecast': best_forecast['mean'],
+            'mean': best_forecast['mean'],
             'lower': best_forecast['lower'],
             'upper': best_forecast['upper']
         })
+        forecast_data = [
+            {
+                "date": str(date.date()),
+                "yhat": mean,
+                "yhat_lower": lower,
+                "yhat_upper": upper
+            }
+            for date, mean, lower, upper in zip(df['date'], df['mean'], df['lower'], df['upper'])
+        ]
+
     elif best_model_name == 'XGBoost':
-        forecast_df = pd.DataFrame({
+        df = pd.DataFrame({
             'date': best_forecast['dates'],
-            'forecast': best_forecast['values'],
-            'lower': [None] * len(best_forecast['values']),
-            'upper': [None] * len(best_forecast['values'])
+            'mean': best_forecast['values']
         })
-    
-    forecast_json = forecast_df.to_dict(orient='records')
-    
-    # Clean up temporary file
-    os.remove(file_path)
-    
-    return {
-        'best_model': best_model_name,
-        'forecast': forecast_json,
-        'performance': results[best_model_name.lower()]['performance']
-    }
-@app.get("/")
-def read_root():
-    return {"message": "FastAPI is working!"}
-# FastAPI endpoint
-@app.post("/api/ml/predict")
-async def predict(data: dict):
-    file_url = data.get("fileUrl")
-    if not file_url:
-        raise HTTPException(status_code=400, detail="File URL is required")
-    
-    result = main(file_url)
-    return {"message": "File processed successfully", "result": result}
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=6001)
-=======
-        df = best_forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-        fig.add_trace(go.Scatter(
-            x=df['ds'],
-            y=df['yhat'],
-            mode='lines',
-            name='Forecast',
-            line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-        ))
-        fig.add_trace(go.Scatter(
-            x=df['ds'].tolist() + df['ds'].tolist()[::-1],
-            y=df['yhat_upper'].tolist() + df['yhat_lower'].tolist()[::-1],
-            fill='toself',
-            fillcolor='rgba(220, 53, 69, 0.2)',
-            line=dict(color='rgba(255, 255, 255, 0)'),
-            name='95% Confidence Interval',
-            hoverinfo='skip'
-        ))
-        fig.update_layout(
-            title='Spending Forecast (Prophet)',
-            xaxis_title='Date',
-            yaxis_title='Amount ($)',
-            template='plotly_dark'
-        )
-    else:
-        if best_model_name == 'SARIMA':
-            df = pd.DataFrame({
-                'date': best_forecast['mean'].index,
-                'mean': best_forecast['mean'],
-                'lower': best_forecast['lower'],
-                'upper': best_forecast['upper']
-            })
-            fig.add_trace(go.Scatter(
-                x=df['date'],
-                y=df['mean'],
-                mode='lines',
-                name='Forecast',
-                line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-            ))
-            fig.add_trace(go.Scatter(
-                x=df['date'].tolist() + df['date'].tolist()[::-1],
-                y=df['upper'].tolist() + df['lower'].tolist()[::-1],
-                fill='toself',
-                fillcolor='rgba(220, 53, 69, 0.2)',
-                line=dict(color='rgba(255, 255, 255, 0)'),
-                name='95% Confidence Interval',
-                hoverinfo='skip'
-            ))
-        elif best_model_name == 'XGBoost':
-            df = pd.DataFrame({
-                'date': best_forecast['dates'],
-                'mean': best_forecast['values']
-            })
-            fig.add_trace(go.Scatter(
-                x=df['date'],
-                y=df['mean'],
-                mode='lines',
-                name='Forecast',
-                line=dict(color='rgba(220, 53, 69, 0.8)', width=2),
-            ))
-            print("Note: XGBoost forecast does not include confidence intervals.")
-
-        fig.update_layout(
-            title=f'Spending Forecast ({best_model_name})',
-            xaxis_title='Date',
-            yaxis_title='Amount ($)',
-            template='plotly_dark'
-        )
-
-    # Save plot to static folder
-    filename = f"forecast_{uuid.uuid4().hex}.png"
-    filepath = os.path.join("static", filename)
-    fig.write_image(filepath)
-
-    # Encode to base64
-    with open(filepath, "rb") as img_file:
-        b64_string = base64.b64encode(img_file.read()).decode("utf-8")
+        forecast_data = [
+            {
+                "date": str(date.date()) if hasattr(date, "date") else str(date),
+                "yhat": value
+            }
+            for date, value in zip(df['date'], df['mean'])
+        ]
 
     return {
         "best_model": best_model_name,
-        "image_base64": b64_string,
-        "image_url": f"/static/{filename}"
+        "forecast": forecast_data
     }
 
 
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"message": "Flask API is running"}), 200
 
 
-@app.route("/api/ml/predict", methods=["POST"])
-def predict_expense():
+
+
+@app.post("/api/ml/predict")
+async def predict_expense(request: Request):
     try:
-        data = request.get_json()
-        file_url = data["fileUrl"]
+        data = await request.json()
+        file_url = data.get("fileUrl")
+        
+        if not file_url:
+            raise HTTPException(status_code=400, detail="No file URL provided")
 
+        # Download and process the file
         response = requests.get(file_url)
         file_bytes = BytesIO(response.content)
+        df = pd.read_excel(file_bytes, skiprows=21, engine='openpyxl')  # Adjust skiprows as needed
 
-        df = pd.read_excel(file_bytes, skiprows=21)
-
+        # Run forecasting
         result = run_forecasting(df)
-
-        return jsonify({
+        if "error" in result:
+            return {"error": result["error"]}, 400
+        return {
             "message": "Forecast successful",
             "best_model": result["best_model"],
-            "image_base64": result["image_base64"],  # Use in frontend as <img src="data:image/png;base64,...">
-            "image_url": result["image_url"]  # Optional, if you prefer to load from /static/ directory
-        })
+            "forecast": result["forecast"]
+        }
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-
+@app.get("/")
+async def home():
+    return {"message": "FastAPI backend is running!"}
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)  # Running on port 5000 or any available port
->>>>>>> f36ba0f42e48d9f233eec619065f1ea5d0e22bb0:ml_server/model.py
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=6001)  # Match Node.js's expected port
