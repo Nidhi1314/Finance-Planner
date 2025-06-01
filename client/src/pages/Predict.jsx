@@ -7,20 +7,29 @@ import { useState } from "react";
 
 ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Title);
 
-const Insights = ({ predictionData }) => {
+const Predict = ({ predictionData, duration}) => {
   const [chartData, setchartData] = useState(null);
+  
 
   useEffect(()=>{
     if(!predictionData || predictionData.length<2) return;
+    let filteredData = [];
+  if (duration === "3m") filteredData = predictionData.slice(0, 90);
+  else if (duration === "6m") filteredData = predictionData.slice(0, 180);
+  else if (duration === "1y") filteredData = predictionData.slice(0, 365);
+  else filteredData = predictionData;
+
+console.log("Sample predictionData:", predictionData.slice(0, 5));
+console.log("Filtered Data:", filteredData);
 
     const labels=[];
     const spending=[];
 
-    for(let i=1;i<predictionData.length;i++)
+    for(let i=1;i<filteredData.length;i++)
     {
-      const prev=predictionData[i-1].yhat;
-      const curr=predictionData[i].yhat;
-      const date=predictionData[i].date;
+      const prev=filteredData[i-1].yhat;
+      const curr=filteredData[i].yhat;
+      const date=filteredData[i].date;
 
       const spent=Math.max(0,prev-curr);
       spending.push(spent.toFixed(2));
@@ -39,10 +48,10 @@ const Insights = ({ predictionData }) => {
         },
       ],
     });
-  }, [predictionData]);
+  }, [predictionData, duration]);
 
   const options={
-    reponsive:true,
+    responsive:true,
     plugins:{
       title:{
         display:true,
@@ -58,10 +67,10 @@ const Insights = ({ predictionData }) => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Analyse Expenses</h2>
-      <p className="mb-4">This graph shows the predicted daily spending trend based on your uploaded data.</p>
+      
       {chartData ? <Line data={chartData} options={options}/> : <p>Loading...</p>}
+      
     </div>
   );
 };
-export default Insights;
+export default Predict;

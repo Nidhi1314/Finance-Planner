@@ -408,6 +408,15 @@ def run_forecasting(df):
     if processed_df is None:
         return {"error": "Error processing file. Please check the format."}
 
+    # always prepare processed_data
+    processed_data = [
+    {
+        "date": str(row["date"].date()) if hasattr(row["date"], "date") else str(row["date"]),
+        "amount": row["amount"]
+    }
+    for _, row in processed_df.reset_index().iterrows()
+]
+
     # Initialize the forecaster
     forecaster = TimeSeriesForecaster(processed_df)
 
@@ -461,10 +470,13 @@ def run_forecasting(df):
             }
             for date, value in zip(df['date'], df['mean'])
         ]
+       
+
 
     return {
         "best_model": best_model_name,
-        "forecast": forecast_data
+        "forecast": forecast_data,
+        "processed_data": processed_data
     }
 
 
@@ -493,7 +505,8 @@ async def predict_expense(request: Request):
         return {
             "message": "Forecast successful",
             "best_model": result["best_model"],
-            "forecast": result["forecast"]
+            "forecast": result["forecast"],
+            "processed_data": result["processed_data"] 
         }
 
     except Exception as e:
