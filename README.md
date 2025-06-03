@@ -66,18 +66,10 @@ The **Analyse** section presents:
   ![Screenshot 2025-05-23 232523](https://github.com/user-attachments/assets/899b9535-37b1-4b80-880a-cbd30c99110d)
 
 
-- **Login / Register Page**  
-|![Screenshot 2025-05-23 232604](https://github.com/user-attachments/assets/628f1d9d-aead-4fb0-85cb-97b056221773)
-![Screenshot 2025-05-23 232640](https://github.com/user-attachments/assets/e8ef8cc1-88f7-42a5-b1c4-1ec82eafa9f9)
-
-
 - **Dashboard Page**  
   ![Screenshot 2025-05-23 232725](https://github.com/user-attachments/assets/5d1af4dc-3c19-4e0a-8c00-3cafb6f4d921)
 
 
-- **Upload Excel Page**  
-  ![Screenshot 2025-05-23 232748](https://github.com/user-attachments/assets/bfbeb77c-19f5-4349-a6ce-6fcb122a2c62)
-  ![Screenshot 2025-05-23 232809](https://github.com/user-attachments/assets/52ebc042-7f9b-4b1d-91ca-e2e5706ee601)
 
 - **Prediction in Action**  
 ![Screenshot 2025-05-23 232835](https://github.com/user-attachments/assets/f3546f50-a066-4dc2-b026-c5b081ad21fc)
@@ -88,7 +80,11 @@ The **Analyse** section presents:
 ## 🎥 Demo Recording
 
 
-https://github.com/user-attachments/assets/057168b4-7c89-406e-9ba8-63ce1a0171cc
+
+
+
+https://github.com/user-attachments/assets/5036bdfb-ac76-4ffb-8ede-59828e1ba509
+
 
 
 
