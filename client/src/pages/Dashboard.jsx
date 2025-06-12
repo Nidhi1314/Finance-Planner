@@ -1,437 +1,313 @@
 import React, { useEffect, useState } from "react";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  IconButton,
+  Box,
+  Paper,
+  Button,
+  CircularProgress,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl
+} from "@mui/material";
+import {
+  Home as HomeIcon,
+  UploadFile as UploadIcon,
+  Analytics as AnalyzeIcon,
+  AutoGraph as PredictIcon,
+  Logout as LogoutIcon
+} from "@mui/icons-material";
+import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { FaSignOutAlt } from "react-icons/fa";
-import {toast} from 'react-toastify';
-import { User } from "lucide-react";
 import Predict from "./Predict.jsx";
 import Analyse from "./Analysis.jsx";
-import  sendToML  from "../../../server/routes/mlRoutes.js";
+import sendToML from "../../../server/routes/mlRoutes.js";
 import Loading from "../components/LoadingOverlay.jsx";
 
+const drawerWidth = 240;
 
 const Dashboard = () => {
   const [user, setUser] = useState({});
   const [loading, setLoading] = useState(true);
-  const [isuploading, setisuploading] = useState(false);
-  const [isanalysing, setisanalysing] = useState(false);
+  const [isuploading, setIsUploading] = useState(false);
+  const [isanalysing, setIsAnalysing] = useState(false);
   const [selectedSection, setSelectedSection] = useState("home");
   const [predictionData, setPredictionData] = useState(null);
   const [processedData, setProcessedData] = useState(null);
-  const [duration, setDuration] = useState("3months"); // default: 3 months
-
-
-
-  const navigate = useNavigate();
-  useEffect(() => {
-    console.log("User Data:", user);
-  }, [user]);
-
-
-  const [dragging, setDragging] = useState(false);
+  const [duration, setDuration] = useState("3m");
   const [selectedFile, setSelectedFile] = useState(null);
 
-  const handleFileChange = (event) => {
-    setSelectedFile(event.target.files[0]);
-  };
+  const navigate = useNavigate();
 
-  //handle drag and drop feature
-  const handleDrop = (event) => {
-    event.preventDefault();
-    setDragging(false);
-    const file = event.dataTransfer.files[0];
-    if (file) setSelectedFile(file);
-  };
-  const removeFile = () => setSelectedFile(null);
-
-  // Handle file upload on button click
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      alert("Please select a file first!");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    setisuploading(true);
-    setisanalysing(false);
-
-    try {
-      const response = await fetch("http://localhost:5000/api/upload", {
-        method: "POST",
-        body: formData,
-        mode: "cors",
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        setisuploading(false);
-        console.log("Uploaded file URL:", data.fileUrl);
-        alert("File uploaded successfully!");
-        toast.success("File uploaded successfully!", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          theme: "colored",
-        });
-
-        setSelectedFile(null); 
-        setTimeout(() => {
-        setisanalysing(true);  // Start analyzing spinner
-      }, 3000);
-
-      try{
-        const mlResponse= await sendToML(data.fileUrl);
-        console.log("ML prediction response",mlResponse);
-
-        setPredictionData(mlResponse.forecast);
-        setProcessedData(mlResponse.processed_data);
-        setisanalysing(false);
-        setSelectedSection("analyze");
-      }catch(mlerror){
-        console.error("error in ML prediction",mlerror);
-        setisanalysing(false);
-      }
-         
-      } else {
-        setisuploading(false);
-        toast.error("Upload failed. Please try again.");
-        alert("Upload failed: " + data.message);
-      }
-    } catch (error) {
-      setisuploading(false);
-      console.error("Upload error:", error);
-      toast.error("Upload failed. Please try again.");
-      alert("An error occurred while uploading.");
-    }
-
-   
-  };
-
-
-  
-
-  
-
-
+  // Dashboard fetch
   useEffect(() => {
-    const fetchDashboard = async () => {
-      const token = localStorage.getItem("token"); // Get token from localStorage
-
-      if (!token) {
-        navigate("/login"); // Redirect to login if no token
-        return;
-      }
+    async function fetchDashboard() {
+      const token = localStorage.getItem("token");
+      if (!token) return navigate("/login");
 
       try {
-        const response = await fetch("http://localhost:5000/api/users/dashboard", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // Send token in the header
-          },
+        const res = await fetch("http://localhost:5000/api/users/dashboard", {
+          headers: { Authorization: `Bearer ${token}` }
         });
-
-        if (!response.ok) {
-          throw new Error("Unauthorized");
-        }
-
-        const data = await response.json();
+        if (!res.ok) throw new Error("Unauthorized");
+        const data = await res.json();
         setUser(data);
-      } catch (error) {
-        console.error("Error fetching dashboard:", error);
-        localStorage.removeItem("token"); // Remove invalid token
-        navigate("/login"); // Redirect to login
+      } catch {
+        localStorage.removeItem("token");
+        navigate("/login");
       } finally {
         setLoading(false);
       }
-    };
-
+    }
     fetchDashboard();
   }, [navigate]);
 
-  if (loading) return <h2>Loading...</h2>;
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Remove token from localStorage
-    navigate("/"); // Redirect to login page
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
+  const handleFileChange = e => setSelectedFile(e.target.files[0]);
+  const removeFile = () => setSelectedFile(null);
+  const handleUpload = async () => {
+    if (!selectedFile) return toast.error("Select a file first!");
 
-  
-  
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    setIsUploading(true);
+    setIsAnalysing(false);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setIsUploading(false);
+        toast.success("Upload successful!");
+        setSelectedFile(null);
+
+        setTimeout(async () => {
+          setIsAnalysing(true);
+          try {
+            const mlResponse = await sendToML(data.fileUrl);
+            setPredictionData(mlResponse.forecast);
+            setProcessedData(mlResponse.processed_data);
+            setIsAnalysing(false);
+            setSelectedSection("analyze");
+          } catch {
+            setIsAnalysing(false);
+            toast.error("ML analysis failed.");
+          }
+        }, 1500);
+      } else {
+        setIsUploading(false);
+        toast.error(data.message || "Upload failed.");
+      }
+    } catch {
+      setIsUploading(false);
+      toast.error("Upload error.");
+    }
+  };
+
+  if (loading) return <CircularProgress sx={{ m: 4 }} />;
+
   return (
-    <div className="flex h-screen bg-gray-100 relative">
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-900 bg-opacity-80 backdrop-blur-lg  text-white flex flex-col p-5 shadow-lg">
-        <h2 className="text-2xl mb-25 font-bold text-white tracking-wide">
-          Fin<span className="text-blue-400">Track</span>
-        </h2>
-        <nav className="flex flex-col space-y-4">
-          <button
-            onClick={() => setSelectedSection("home")}
-            className={`cursor-pointer p-3 rounded ${
-              selectedSection === "home"
-                ? "bg-blue-200 text-black"
-                : "hover:bg-blue-500"
-            }`}
+  <Box sx={{ display: "flex", height: "100vh" }}>
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: drawerWidth,
+        "& .MuiDrawer-paper": {
+          width: drawerWidth,
+          boxSizing: "border-box",
+          background: "linear-gradient(to bottom, #0d47a1, #001f54)", // 🔵 darker gradient
+          color: "white"
+        }
+      }}
+    >
+      <Toolbar />
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h6" align="center" gutterBottom>
+          Fin<span style={{ color: "#ffc107" }}>Track</span>
+        </Typography>
+      </Box>
+      <List sx={{ flexGrow: 1 }}>
+        {[
+          { id: "home", label: "Home", icon: <HomeIcon /> },
+          { id: "upload", label: "Upload File", icon: <UploadIcon /> },
+          { id: "analyze", label: "Analyze", icon: <AnalyzeIcon /> },
+          { id: "predict", label: "Predict Expense", icon: <PredictIcon /> }
+        ].map(item => (
+          <ListItem
+            button
+            key={item.id}
+            selected={selectedSection === item.id}
+            onClick={() => setSelectedSection(item.id)}
           >
-            Home
-          </button>
-          <button
-            onClick={() => setSelectedSection("upload")}
-            className={`cursor-pointer p-3 rounded ${
-              selectedSection === "upload"
-                ? "bg-blue-200 text-black"
-                : "hover:bg-blue-500"
-            }`}
-          >
-            Upload File
-          </button>
-          <button
-            onClick={() => setSelectedSection("analyze")}
-            className={`cursor-pointer p-3 rounded ${
-              selectedSection === "analyze"
-                ? "bg-blue-200 text-black"
-                : "hover:bg-blue-500"
-            }`}
-          >
-            Analyze
-          </button>
-          <button
-            onClick={() => setSelectedSection("predict")}
-            className={`cursor-pointer p-3 rounded ${
-              selectedSection === "predict"
-                ? "bg-blue-200 text-black"
-                : "hover:bg-blue-500"
-            }`}
-          >
-            Predict Expense
-          </button>
-        </nav>
-        <div className="mt-auto">
-          <button
-            onClick={handleLogout}
-            className=" cursor-pointer flex items-center p-3 hover:bg-red-500 rounded"
-          >
-            <FaSignOutAlt className="mr-2" /> Logout
-          </button>
-        </div>
-      </div>
+            <ListItemIcon sx={{ color: "white" }}>{item.icon}</ListItemIcon>
+            <ListItemText
+              primary={item.label}
+              primaryTypographyProps={{
+                fontWeight: selectedSection === item.id ? "bold" : "normal"
+              }}
+            />
+          </ListItem>
+        ))}
+      </List>
+      <Box sx={{ p: 2 }}>
+        <Button
+          variant="contained"
+          color="error"
+          fullWidth
+          startIcon={<LogoutIcon />}
+          onClick={handleLogout}
+        >
+          Logout
+        </Button>
+      </Box>
+    </Drawer>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Navbar */}
-        <div className="flex justify-between items-center bg-white shadow p-4">
-          <h1 className="text-lg font-semibold flex items-center gap-2">
-            <User className="w-6 h-6 text-gray-600" />
-            {user?.name}
-          </h1>
-          <button
-            onClick={handleLogout}
-            className="cursor-pointer text-red-500 hover:text-red-700"
-          >
-            <FaSignOutAlt size={24} />
-          </button>
-        </div>
+    <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+      <AppBar position="fixed" sx={{ zIndex: theme => theme.zIndex.drawer + 1 }}>
+        <Toolbar>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            {user.name}
+          </Typography>
+          <IconButton color="inherit" onClick={handleLogout}>
+            <LogoutIcon />
+          </IconButton>
+        </Toolbar>
+      </AppBar>
+      <Toolbar />
 
-        {/* Content Area */}
+      {/* ⬇️ Removed flexGrow from here */}
+      <Box sx={{ p: 3, overflowY: "auto" }}>
         {selectedSection === "home" && (
-          <div className=" flex flex-col h-full p-6 ">
-            <h2 className="text-2xl font-bold mb-4">
-              Welcome, {user?.name}! 🎉
-            </h2>
-            <p className="text-gray-700 mb-4">
-              Get started by uploading your bank statement, analyzing your
-              spending trends, and predicting future expenses.
-            </p>
-
-            {/* How-To Guide with Clickable Links */}
-            <div className="bg-white p-4 rounded-lg shadow-md mb-4">
-              <h3 className="text-lg font-semibold">How to Use the App</h3>
-              <ul className="list-disc list-inside text-gray-700 mt-2">
-                <li>
-                  📂 <strong>Upload:</strong>
-                  <button
-                    className="text-blue-600 hover:underline"
-                    onClick={() => setSelectedSection("upload")}
-                  >
-                    Upload your bank statement.
-                  </button>
-                </li>
-                <li>
-                  📊 <strong>Analyze:</strong>
-                  <button
-                    className="text-blue-600 hover:underline"
-                    onClick={() => setSelectedSection("analyze")}
-                  >
-                    View your expense breakdown.
-                  </button>
-                </li>
-                <li>
-                  🔮 <strong>Predict:</strong>
-                  <button
-                    className="text-blue-600 hover:underline"
-                    onClick={() => setSelectedSection("predict")}
-                  >
-                    Get machine learning-based forecasts for future expenses.
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* Account Overview */}
-            <div className="mt-6 bg-white p-4 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold">Your Account Overview</h3>
-              <p className="text-gray-700">
-                <strong>Name:</strong> {user?.name}
-              </p>
-              <p className="text-gray-700">
-                <strong>Email:</strong> {user?.email}
-              </p>
-            </div>
-
-            {/* Summary Cards - Ensure No Overflow */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-              <div className="bg-blue-100 p-4 rounded-lg shadow w-full">
-                <p className="text-lg font-semibold">
-                  Total Expenses This Month
-                </p>
-                <p className="text-xl font-bold">₹XX,XXX</p>
-              </div>
-              <div className="bg-green-100 p-4 rounded-lg shadow w-full">
-                <p className="text-lg font-semibold">
-                  Highest Expense Category
-                </p>
-                <p className="text-xl font-bold">Food (₹X,XXX)</p>
-              </div>
-              <div className="bg-yellow-100 p-4 rounded-lg shadow w-full">
-                <p className="text-lg font-semibold">
-                  Predicted Next Month's Expenses
-                </p>
-                <p className="text-xl font-bold">₹XX,XXX</p>
-              </div>
-            </div>
-          </div>
+          <>
+            <Typography variant="h4" gutterBottom>
+              Welcome, {user.name}!
+            </Typography>
+            <Typography variant="subtitle1" gutterBottom>
+              Upload your statements, analyze spending, and predict future expenses.
+            </Typography>
+            <Box
+              component={Paper}
+              sx={{ p: 3, mb: 3, background: "#fff" }}
+              elevation={2}
+            >
+              <Typography variant="h6">Quick Guide</Typography>
+              <List>
+                {[
+                  { label: "Upload", section: "upload" },
+                  { label: "Analyze", section: "analyze" },
+                  { label: "Predict", section: "predict" }
+                ].map((it, idx) => (
+                  <ListItem button key={idx} onClick={() => setSelectedSection(it.section)}>
+                    <ListItemText primary={`→ Go to ${it.label}`} />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          </>
         )}
 
-        {/* Content Area */}
-        <div className="p-6 overflow-y-auto h-full">
-          {selectedSection === "upload" && (
-            <div className="p-6 bg-white shadow-lg rounded-lg w-full max-w-lg mx-auto border border-gray-300">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4 text-center">
-                Upload Your Bank Statement File
-              </h2>
+        {selectedSection === "upload" && (
+          <Paper sx={{ p: 3, mx: "auto", maxWidth: 600 }} elevation={2}>
+            <Typography variant="h5" centered gutterBottom>
+              Upload Your Bank Statement
+            </Typography>
+            <input
+              type="file"
+              accept=".csv,.xlsx"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+              id="file-upload"
+            />
+            <label htmlFor="file-upload">
+              <Button variant="outlined" component="span" fullWidth sx={{ mb: 2 }}>
+                {selectedFile ? selectedFile.name : "Select file (.csv, .xlsx)"}
+              </Button>
+            </label>
+            {selectedFile && (
+              <Button color="secondary" onClick={removeFile}>
+                Remove File
+              </Button>
+            )}
+            <Button
+              variant="contained"
+              color="primary"
+              fullWidth
+              sx={{ mt: 2 }}
+              disabled={!selectedFile || isuploading}
+              onClick={handleUpload}
+            >
+              {isuploading ? <CircularProgress size={24} /> : "Upload"}
+            </Button>
+          </Paper>
+        )}
 
-              {/* Drag & Drop Area */}
-              <div
-                className={`border-2 border-dashed p-6 rounded-lg text-center ${
-                  dragging
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-400 bg-gray-100"
-                }`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragging(true);
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={handleDrop}
-              >
-                {selectedFile ? (
-                  <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow-md">
-                    <span className="text-gray-700 truncate">
-                      {selectedFile.name}
-                    </span>
-                    <button
-                      onClick={removeFile}
-                      className="text-red-500 font-semibold hover:text-red-700"
-                    >
-                      ❌
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-gray-600">
-                      Drag & drop your file here(.xlsx,.csv)
-                    </p>
-                    <p className="text-gray-500 text-sm mt-1">or</p>
-                    <label className="cursor-pointer bg-blue-500 text-white px-4 py-2 mt-3 inline-block rounded-md hover:bg-blue-600 transition">
-                      Browse File
-                      <input
-                        type="file"
-                        accept=".xlsx, .csv"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                    </label>
-                  </>
-                )}
-              </div>
+        {isanalysing && <Loading message="Analyzing your data..." />}
+        {selectedSection === "analyze" && (
+  <Paper sx={{ p: 3, height: 500, overflow: "hidden" }} elevation={2}>
+    <Typography variant="h5" gutterBottom>
+      Expense Analysis
+    </Typography>
+    <FormControl sx={{ minWidth: 120, mb: 2 }}>
+      <InputLabel>Duration</InputLabel>
+      <Select
+        value={duration}
+        label="Duration"
+        onChange={e => setDuration(e.target.value)}
+      >
+        <MenuItem value="3m">3 Months</MenuItem>
+        <MenuItem value="6m">6 Months</MenuItem>
+        <MenuItem value="1y">1 Year</MenuItem>
+        <MenuItem value="more">More than 1 Year</MenuItem>
+      </Select>
+    </FormControl>
+    <Box sx={{ height: 400 }}>
+      <Analyse processedData={processedData} duration={duration} />
+    </Box>
+  </Paper>
+)}
 
-              {/* Upload Button */}
-              <button
-                className="mt-4 w-full bg-green-500 text-white px-4 py-2 rounded-lg transition-all duration-300 hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                onClick={() => handleUpload(selectedFile)}
-                disabled={!selectedFile}
-              >
-                Upload
-              </button>
-            </div>
-          )}{" "}
-          {/*upload section end*/}
-          {isuploading && <Loading message="Uploading your file..." />}
-          {isanalysing && <Loading message="Analyzing your data..." />}
-          {selectedSection === "analyze" && (
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Expense Analysis</h2>
-              
-              <p className="mb-4">
-                Select the duration for which you want to analyze your expenses.
-              </p>
-              <select
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="p-2 border rounded"
-              >
-                <option value="3m">3 Months</option>
-                <option value="6m">6 Months</option>
-                <option value="1y">1 Year</option>
-                <option value="more">More than 1 Year</option>
-              </select>
-              
-            <Analyse processedData={processedData}  duration={duration} />
-          </div>
-          )}
-          {selectedSection === "predict" && (
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Expense Prediction</h2>
-              <p className="mb-4">
-                Select the duration for which you want to predict your expenses.
-              </p>
-              <select
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="p-2 border rounded"
-              >
-                <option value="3m">3 Months</option>
-                <option value="6m">6 Months</option>
-                <option value="1y">1 Year</option>
-                <option value="more">More than 1 Year</option>
-              </select>
+{selectedSection === "predict" && (
+  <Paper sx={{ p: 3, height: 500, overflow: "hidden" }} elevation={2}>
+    <Typography variant="h5" gutterBottom>
+      Expense Prediction
+    </Typography>
+    <FormControl sx={{ minWidth: 120, mb: 2 }}>
+      <InputLabel>Duration</InputLabel>
+      <Select
+        value={duration}
+        label="Duration"
+        onChange={e => setDuration(e.target.value)}
+      >
+        <MenuItem value="3m">3 Months</MenuItem>
+        <MenuItem value="6m">6 Months</MenuItem>
+        <MenuItem value="1y">1 Year</MenuItem>
+        <MenuItem value="more">More than 1 Year</MenuItem>
+      </Select>
+    </FormControl>
+    <Box sx={{ height: 400 }}>
+      <Predict predictionData={predictionData} duration={duration} />
+    </Box>
+  </Paper>
+)}
 
-          
-              <Predict
-                predictionData={predictionData}
-                duration={duration}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
+      </Box>
+    </Box>
+  </Box>
+)};
 export default Dashboard;
