@@ -66,7 +66,7 @@ console.log("Filtered Data:", filteredData);
   };
 
   return (
-    <div>
+    <div className="w-full max-w-4xl h-[500px] mx-auto">
       
       {chartData ? <Line data={chartData} options={options}/> : <p>Loading...</p>}
       
