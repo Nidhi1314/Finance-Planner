@@ -444,6 +444,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from 'react-toastify';
 import Predict from "./Predict.jsx";
 import Analyse from "./Analysis.jsx";
+import Profile from "./Profile.jsx";
 import sendToML from "../../../server/routes/mlRoutes.js";
 import { ArrowRightCircle } from "lucide-react"; // at the top with other imports
 
@@ -609,7 +610,7 @@ export default function Dashboard() {
               }`}
             >
               {item.icon}
-              <span className="font-medium">{item.name}</span>
+              <span className="font-medium text-xl">{item.name}</span>
             </div>
           ))}
         </nav>
@@ -620,7 +621,7 @@ export default function Dashboard() {
           <div className="flex items-center space-x-4 ml-6">
             
             <Avatar className="w-10 h-10" letter={user?.name?.charAt(0) || "U"} />
-      <span className="text-gray-800 font-semibold text-lg">
+      <span className="text-gray-800 font-semibold text-2xl font-Helvetica">
         Welcome, {user?.name || "User"}
       </span>
       
@@ -632,7 +633,7 @@ export default function Dashboard() {
 
         {active === "Home" && (
           <div>
-            <p className="text-gray-700 mb-4 p-6">
+            <p className="text-gray-700 mb-4 p-6 text-lg">
               Get started by uploading your bank statement, analyzing your
               spending trends, and predicting future expenses.
             </p>
@@ -766,6 +767,8 @@ export default function Dashboard() {
               />
             </div>
           )}
+          {active === "Profile" && <Profile />}
+
       </div>
     </div>
   );
