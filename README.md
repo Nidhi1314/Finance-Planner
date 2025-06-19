@@ -62,18 +62,26 @@ The **Analyse** section presents:
 ### 📸 App Screenshots
 
 - **Home Page**  
-  ![Screenshot 2025-05-23 232430](https://github.com/user-attachments/assets/5e7b1cc8-4ec5-420e-8bc1-1169123ed81d)
-  ![Screenshot 2025-05-23 232523](https://github.com/user-attachments/assets/899b9535-37b1-4b80-880a-cbd30c99110d)
+  ![Screenshot 2025-06-19 170035](https://github.com/user-attachments/assets/7ae81d7f-8e86-495c-b500-6da3bd808291)
+
+ 
+![Screenshot 2025-06-19 170051](https://github.com/user-attachments/assets/480d76b4-4e9c-4211-9314-27a6284ba851)
+![Screenshot 2025-06-19 170113](https://github.com/user-attachments/assets/44bad41c-6102-4cbf-aff3-318a7819dd55)
 
 
 - **Dashboard Page**  
-  ![Screenshot 2025-05-23 232725](https://github.com/user-attachments/assets/5d1af4dc-3c19-4e0a-8c00-3cafb6f4d921)
+  
 
+![Screenshot 2025-06-19 170351](https://github.com/user-attachments/assets/849934de-0400-4381-bf0a-4531a394b301)
 
+![Screenshot 2025-06-19 170341](https://github.com/user-attachments/assets/68da1d53-8b5f-47c9-965f-96a68b700d93)
 
 - **Prediction in Action**  
-![Screenshot 2025-05-23 232835](https://github.com/user-attachments/assets/f3546f50-a066-4dc2-b026-c5b081ad21fc)
 
+
+![Screenshot 2025-06-19 170437](https://github.com/user-attachments/assets/4c4233f8-a0e2-4027-9fef-d8d29b46ef59)
+
+![Screenshot 2025-06-19 170451](https://github.com/user-attachments/assets/9c64e3d5-e088-4251-ab99-03380e0273f6)
 
 ---
 
@@ -83,7 +91,11 @@ The **Analyse** section presents:
 
 
 
-https://github.com/user-attachments/assets/5036bdfb-ac76-4ffb-8ede-59828e1ba509
+https://github.com/user-attachments/assets/32d79e6e-e192-4a9f-9410-a91f0a56eea7
+
+
+
+
 
 
 
